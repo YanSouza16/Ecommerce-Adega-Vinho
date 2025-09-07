@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tabela Produtos</title>
+    <link rel="stylesheet" th:href="@{/css/styles2.css}">
+    <style>
+        /* Estilos para o modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.7);
+            transition: opacity 0.3s ease-in-out;
+        }
+
+        .modal-content {
+            display: flex;
+            flex-direction: column;
+            background-color: #ffffff;
+            margin: 5% auto;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            width: 60%;
+            max-width: 800px;
+            position: relative;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .close {
+            color: #aaa;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: #000;
+            text-decoration: none;
+        }
+
+        .modal-input {
+            width: 95%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            transition: border 0.3s ease;
+        }
+
+        .modal-input:focus {
+            border-color: #0056b3;
+            outline: none;
+        }
+
+        .modal img {
+            width: auto;
+            height: auto;
+            max-width: 400px;
+            border-radius: 8px;
+            object-fit: cover;
+            margin-right: 20px;
+        }
+
+        .modal img.principal {
+            width: 100%;
+            max-width: 100%;
+            height: auto;
+        }
+
+        .modal img.secundaria {
+            width: 200px;
+            height: 200px;
+            object-fit: cover;
+            margin-right: 10px;
+        }
+
+        .modal-button {
+            background-color: #0056b3;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+            margin-top: 10px;
+        }
+
+        .modal-button:hover {
+            background-color: #00448d;
+        }
+
+        .modal-content h2 {
+            color: #333;
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            font-weight: bold;
+            margin-top: 10px;
+            display: block;
+        }
+
+        .form-group input[type="text"],
+        .form-group input[type="number"],
+        .form-group input[type="checkbox"] {
+            width: 95%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            transition: border 0.3s ease;
+        }
+
+        .form-group input[type="text"]:focus,
+        .form-group input[type="number"]:focus {
+            border-color: #0056b3;
+            outline: none;
+        }
+
+        .modal-footer button {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <header class="header">
+        <div class="container">
+            <h1>Cantinho do Vinho</h1>
+            <form action="/logout" method="get" style="display: inline;">
+                <button type="submit" class="logout-button">Sair</button>
+            </form>
+        </div>
+    </header>
+    <header class="secondary-header">
+        <div class="container">
+            <h2>Produtos</h2>
+            <div class="search-container">
+                <input type="text" placeholder="Pesquisar produtos..." class="search-input" id="search-input">
+                <button class="search-button" onclick="pesquisarProdutos()">🔍</button>
+            </div>
+            <a th:href="@{/cad-produto}" class="new-product-button">+ Novo Produto</a>
+        </div>
+    </header>
+    <main>
+        <div class="content">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Código</th>
+                        <th>Nome</th>
+                        <th>Quantidade</th>
+                        <th>Valor</th>
+                        <th>Avaliação</th>
+                        <th>Ativo</th>
+                        <th>Opções</th>
+                    </tr>
+                </thead>
+                <tbody id="produtos-tbody">
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Modal de Visualização -->
+        <div class="modal" id="modal-visualizar">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Detalhes do Produto</h2>
+                    <span class="close" onclick="fecharModal('visualizar')">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <div id="detalhes-produto"></div>
+                    <div id="imagens-produto"></div>
+                </div>
+                <div class="modal-footer">
+                    <button class="modal-button" onclick="fecharModal('visualizar')">Fechar</button>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- Modal de Alteração -->
+        <div class="modal" id="modalAlterarProduto" tabindex="-1" role="dialog">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Alterar Produto</h5>
+                        <span class="close" id="closeAlterarModal" onclick="fecharModal('editar')">&times;</span>
+                    </div>
+                    <div class="modal-body">
+                        <form id="alterarProdutoForm">
+                            <input type="hidden" id="produto-id">
+                            <div class="form-group">
+                                <label for="produto-nome">Nome</label>
+                                <input type="text" class="modal-input" id="produto-nome">
+                            </div>
+                            <div class="form-group">
+                                <label for="produto-preco">Preço</label>
+                                <input type="number" class="modal-input" id="produto-preco" step="0.01">
+                            </div>
+                            <div class="form-group">
+                                <label for="produto-quantidade">Quantidade</label>
+                                <input type="number" class="modal-input" id="produto-quantidade">
+                            </div>
+                            <div class="form-group">
+                                <label for="produto-avaliacao">Avaliação</label>
+                                <input type="number" class="modal-input" id="produto-avaliacao" min="0" max="5"
+                                    step="0.1">
+                            </div>
+                            <div class="form-group">
+                                <label for="produto-ativo">Ativo</label>
+                                <input type="checkbox" id="produto-ativo">
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="modal-button" id="closeAlterarModal"
+                            onclick="fecharModal('editar')">Fechar</button>
+                        <button type="button" class="modal-button" onclick="atualizarProduto()">Salvar mudanças</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        function listarProdutos() {
+            fetch('/produtos/listarProdutosJson')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Erro ao buscar produtos');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    const tbody = document.getElementById('produtos-tbody');
+                    tbody.innerHTML = '';
+                    data.forEach(produto => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                    <td>${produto.id}</td>
+                    <td>${produto.nomeProduto}</td>
+                    <td>${produto.qtd}</td>
+                    <td>R$ ${produto.preco ? produto.preco.toFixed(2) : 'N/A'}</td>
+                    <td>${produto.avaliacao ? produto.avaliacao : 'N/A'}</td>
+                    <td>${produto.ativo ? 'Sim' : 'Não'}</td>
+                    <td>
+                        <button onclick="abrirModalVisualizar(${produto.id})">Visualizar</button>
+                        <button onclick="abrirModalAlterar(${produto.id})">Alterar</button>
+                        <button onclick="habilitarDesabilitarProduto(${produto.id}, ${produto.ativo})">
+                        ${produto.ativo ? 'Desabilitar' : 'Habilitar'}
+                    </button>
+                    </td>
+                `;
+                        tbody.appendChild(tr);
+                    });
+                })
+                .catch(error => console.error(error));
+        }
+        function abrirModalVisualizar(id) {
+            fetch(`/produtos/${id}`)
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('detalhes-produto').innerHTML = `
+                <p><strong>Nome:</strong> ${data.nomeProduto}</p>
+                <p><strong>Preço:</strong> R$ ${data.preco ? data.preco.toFixed(2) : 'N/A'}</p>
+                <p><strong>Quantidade:</strong> ${data.qtd}</p>
+                <p><strong>Avaliação:</strong> ${data.avaliacao ? data.avaliacao : 'N/A'}</p>
+                <p><strong>Ativo:</strong> ${data.ativo ? 'Sim' : 'Não'}</p>
+            `;
+
+                    const imagensContainer = document.getElementById('imagens-produto');
+                    imagensContainer.innerHTML = '';
+
+                    data.imagens.forEach((imagem, index) => {
+                        const img = document.createElement('img');
+                        img.src = `/img/${imagem.link}`; 
+                        img.alt = 'Imagem do produto';
+
+                        if (index === 0) {
+                            img.classList.add('principal');
+                        } else {
+                            img.classList.add('secundaria');
+                        }
+
+                        imagensContainer.appendChild(img);
+                    });
+
+
+                    document.getElementById('modal-visualizar').style.display = 'block';
+                });
+        }
+        function abrirModalAlterar(id) {
+            fetch(`/produtos/${id}`)
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('produto-id').value = data.id;
+                    document.getElementById('produto-nome').value = data.nomeProduto;
+                    document.getElementById('produto-preco').value = data.preco;
+                    document.getElementById('produto-quantidade').value = data.qtd;
+                    document.getElementById('produto-avaliacao').value = data.avaliacao;
+                    document.getElementById('produto-ativo').checked = data.ativo;
+                    document.getElementById('modalAlterarProduto').style.display = 'block';
+                });
+        }
+        function fecharModal(modal) {
+            if (modal === 'visualizar') {
+                document.getElementById('modal-visualizar').style.display = 'none';
+            } else if (modal === 'editar') {
+                document.getElementById('modalAlterarProduto').style.display = 'none';
+            }
+        }
+
+        function atualizarProduto() {
+            const id = document.getElementById('produto-id').value;
+            const nome = document.getElementById('produto-nome').value;
+            const preco = parseFloat(document.getElementById('produto-preco').value);
+            const quantidade = parseInt(document.getElementById('produto-quantidade').value);
+            const avaliacao = parseInt(document.getElementById('produto-avaliacao').value);
+            const ativo = document.getElementById('produto-ativo').checked;
+
+            const produtoAtualizado = { id, nomeProduto: nome, preco, qtd: quantidade, avaliacao, ativo };
+
+            fetch(`/produtos/alterar/${id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(produtoAtualizado)
+            })
+                .then(response => {
+                    if (response.ok) {
+                        alert('Produto atualizado com sucesso!');
+                        location.reload();
+                    } else {
+                        alert('Erro ao atualizar o produto.');
+                    }
+                });
+        }
+
+        function habilitarDesabilitarProduto(id, ativo) {
+            const novoStatus = !ativo;
+            fetch(`/produtos/alterar-status/${id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ ativo: novoStatus })
+            })
+                .then(response => {
+                    if (response.ok) {
+                        alert(`Produto ${novoStatus ? 'habilitado' : 'desabilitado'} com sucesso!`);
+                        location.reload();
+                    } else {
+                        alert('Erro ao atualizar o status do produto.');
+                    }
+                });
+        }
+        function pesquisarProdutos() {
+            const termo = document.getElementById('search-input').value;
+            fetch(`/produtos/pesquisar?termo=${termo}`)
+                .then(response => response.json())
+                .then(data => {
+                    const tbody = document.getElementById('produtos-tbody');
+                    tbody.innerHTML = ''; 
+                    data.forEach(produto => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td>${produto.id}</td>
+                            <td>${produto.nomeProduto}</td>
+                            <td>${produto.qtd}</td>
+                            <td>R$ ${produto.preco ? produto.preco.toFixed(2) : 'N/A'}</td>
+                            <td>${produto.avaliacao ? produto.avaliacao : 'N/A'}</td>
+                            <td>${produto.ativo ? 'Sim' : 'Não'}</td>
+                            <td>
+                                <button onclick="abrirModalVisualizar(${produto.id})">Visualizar</button>
+                                <button onclick="abrirModalAlterar(${produto.id})">Alterar</button>
+                                <button onclick="habilitarDesabilitarProduto(${produto.id}, ${produto.ativo})">${produto.ativo ? 'Desabilitar' : 'Habilitar'}</button>
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                })
+                .catch(error => console.error(error));
+        }
+        window.onload = listarProdutos;
+    </script>
+</body>
+
+</html>
