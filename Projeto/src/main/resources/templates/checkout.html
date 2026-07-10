@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checkout de Compra</title>
+    <link rel="stylesheet" type="text/css" th:href="@{/css/checkout.css}">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        .cliente-section input,
+        .cliente-section select {
+            width: 100%;
+            height: 50px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+
+        .order-summary {
+            margin-top: 20px;
+        }
+
+        .frete-options {
+            margin-top: 20px;
+        }
+
+        .total-price {
+            font-size: 20px;
+            font-weight: bold;
+            margin: 20px 0px
+        }
+
+        .payment-details {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <header class="header">
+        <a th:href="@{/compra/pagamentos}" class="back-button">← Alterar forma de pagamento</a>
+        <h1>Checkout de Compra</h1>
+    </header>
+
+    <div class="container">
+        <section class="checkout-section">
+            <div class="col-md-6">
+                <h3>Detalhes do Pedido</h3>
+                <ul id="order-summary">
+                </ul>
+            </div>
+        </section>
+
+        <section class="enderecos-section">
+            <h2>Meus Endereços</h2>
+            <div id="enderecos-list"></div>
+            <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#addEnderecoModal">Adicionar
+                Endereço</button>
+            <div class="frete-options">
+                <h4>Opções de Frete:</h4>
+                <div class="frete-option">
+                    <label>
+                        <input type="radio" name="frete" value="15.00" onclick="updateTotal()"> SEDEX: R$ 15,00
+                    </label>
+                </div>
+                <div class="frete-option">
+                    <label>
+                        <input type="radio" name="frete" value="10.00" onclick="updateTotal()"> PAC: R$ 10,00
+                    </label>
+                </div>
+                <div class="frete-option">
+                    <label>
+                        <input type="radio" name="frete" value="0.00" onclick="updateTotal()"> Retirar na loja:
+                        Frete Grátis!
+                    </label>
+                </div>
+            </div>
+        </section>
+
+        <section class="payment-details">
+            <h4>Forma de Pagamento</h4>
+            <p>Forma de pagamento: <span id="metodo-pagamento-display"></span></p>
+            <p>Parcelas: <span id="parcelas-display"></span></p>
+        </section>
+
+        <div class="total-price">
+            <p>Total a pagar: R$ <span id="total-price">0.00</span></p>
+        </div>
+        <button type="button" class="btn btn-success" id="finalize-purchase">Finalizar Compra</button>
+    </div>
+
+    <div class="modal fade" id="addEnderecoModal" tabindex="-1" role="dialog" aria-labelledby="addEnderecoModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addEnderecoModalLabel">Adicionar Novo Endereço</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Fechar">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="addEnderecoForm">
+                        <div class="form-group">
+                            <label for="logradouro">Rua</label>
+                            <input type="text" class="form-control" id="logradouro" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="numero">Número</label>
+                            <input type="text" class="form-control" id="numero" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="bairro">Bairro</label>
+                            <input type="text" class="form-control" id="bairro" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="cidade">Cidade</label>
+                            <input type="text" class="form-control" id="cidade" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="cep">CEP</label>
+                            <input type="text" class="form-control" id="cep" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="estado">Estado</label>
+                            <input type="text" class="form-control" id="estado" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="pais">País</label>
+                            <input type="text" class="form-control" id="pais" value="Brasil" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="save-endereco">Salvar Endereço</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de confirmação da compra -->
+    <div class="modal fade" id="confirmacaoModal" tabindex="-1" role="dialog" aria-labelledby="confirmacaoModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="confirmacaoModalLabel">Confirme sua Compra</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Fechar">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <h4>Resumo da Compra</h4>
+                    <div id="order-summary-confirmation">
+                        <!-- Detalhes do pedido (nome, preço, quantidade) irão aqui -->
+                    </div>
+                    <div>
+                        <h5>Imagem do Pedido</h5>
+                        <img id="confirmar-imagem" src="" alt="Imagem do Pedido" class="img-fluid">
+                    </div>
+                    <p><strong>Forma de Pagamento:</strong> <span id="confirm-metodo-pagamento"></span></p>
+                    <p><strong>Parcelas:</strong> <span id="confirm-parcelas"></span></p>
+                    <p><strong>Endereço de Entrega:</strong> <span id="confirm-endereco"></span></p>
+                    <p><strong>Frete:</strong> <span id="confirm-frete"></span></p>
+                    <p><strong>Total a Pagar:</strong> R$ <span id="confirm-total-price"></span></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="confirm-purchase">Confirmar Compra</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            loadCartData();
+            const userId = sessionStorage.getItem('userId');
+            loadClientInfo(userId);
+            loadClientAddresses(userId);
+            loadPaymentInfo();
+        });
+        function loadPaymentInfo() {
+            const pagamentoData = JSON.parse(sessionStorage.getItem('pagamento'));
+            if (pagamentoData) {
+                document.getElementById('metodo-pagamento-display').textContent = pagamentoData.metodo || 'Não especificado';
+                document.getElementById('parcelas-display').textContent = pagamentoData.parcelas || 'Não especificado';
+            }
+        }
+
+        // Função para carregar os dados do carrinho
+        function loadCartData() {
+            const cart = JSON.parse(localStorage.getItem('cart')) || [];
+            let total = 0;
+            let cartHtml = '';
+
+            // Verificando se o carrinho está vazio
+            if (cart.length === 0) {
+                cartHtml = '<li><strong>Seu carrinho está vazio</strong></li>';
+            } else {
+                cart.forEach(item => {
+                    const priceValue = parseFloat(item.price.replace('R$ ', '').replace(',', '.'));
+                    total += priceValue * item.quantity;
+
+                    cartHtml += `
+                        <li>
+                            <img src="${item.image}" alt="${item.name}" class="order-item-image">
+                            <strong>${item.name}</strong><br>
+                            Preço Unitário: ${item.price} <br>
+                            Quantidade: ${item.quantity}
+                        </li>
+                    `;
+                });
+            }
+
+            document.getElementById('order-summary').innerHTML = cartHtml;
+
+            // Atualizar o preço total
+            const totalPriceContainer = document.getElementById('total-price');
+            totalPriceContainer.textContent = total.toFixed(2);
+        }
+
+        function updateTotal() {
+            const freteOptions = document.getElementsByName('frete');
+            const selectedFrete = Array.from(freteOptions).find(frete => frete.checked);
+            const freteValue = selectedFrete ? parseFloat(selectedFrete.value) : 0;
+
+            const cart = JSON.parse(localStorage.getItem('cart')) || [];
+            let total = 0;
+
+            cart.forEach(item => {
+                const priceValue = parseFloat(item.price.replace('R$ ', '').replace(',', '.'));
+                total += priceValue * item.quantity;
+            });
+
+            total += freteValue;
+
+            const totalPriceContainer = document.getElementById('total-price');
+            totalPriceContainer.textContent = total.toFixed(2);
+        }
+
+        function loadClientInfo(userId) {
+            fetch(`/user/dados/${userId}`)
+                .then(response => response.json())
+                .then(cliente => {
+                    if (cliente) {
+                        document.getElementById('nome').value = cliente.nome;
+                        document.getElementById('cpf').value = cliente.cpf;
+                        document.getElementById('email').value = cliente.email;
+                        document.getElementById('metodo-pagamento-display').textContent = cliente.metodoPagamento || 'Não especificado';
+                        document.getElementById('parcelas-display').textContent = cliente.parcelas || 'Não especificado';
+                    }
+                });
+        }
+
+        function loadClientAddresses(userId) {
+            fetch(`/user/enderecos/${userId}`)
+                .then(response => response.json())
+                .then(enderecos => {
+                    const enderecosList = document.getElementById('enderecos-list');
+                    enderecosList.innerHTML = '';
+
+                    enderecos.forEach(endereco => {
+                        const div = document.createElement('div');
+                        div.innerHTML = `
+                            <label>
+                                <input type="radio" name="endereco" value="${endereco.id}"> ${endereco.logradouro}, ${endereco.numero} - ${endereco.bairro}, ${endereco.cidade}, ${endereco.estado} - ${endereco.cep}
+                            </label>
+                        `;
+                        enderecosList.appendChild(div);
+                    });
+                });
+        }
+
+        document.getElementById("finalize-purchase").addEventListener("click", function () {
+            const cart = JSON.parse(localStorage.getItem("cart")) || [];
+            const idCliente = parseInt(sessionStorage.getItem("userId"));
+            const idEndereco = parseInt(document.querySelector("input[name='endereco']:checked").value);
+            const formaPagamento = document.getElementById("metodo-pagamento-display").textContent;
+            const tipoFrete = document.querySelector("input[name='frete']:checked").value || "Normal";
+            const parcelas = parseInt(document.getElementById("parcelas-display").textContent) || 1;
+            document.getElementById("confirmar-imagem").src = imagemProduto;
+
+            const itens = cart.map(item => ({
+                idProduto: item.id,
+                quantidade: item.quantity,
+                preco: parseFloat(item.price.replace("R$ ", "").replace(",", "."))
+            }));
+
+            const valorTotal = itens.reduce((acc, item) => acc + (item.quantidade * item.preco), 0);
+            const valorParcelas = valorTotal / parcelas;
+
+            // Preencher os dados no modal de confirmação
+            document.getElementById('confirm-metodo-pagamento').textContent = formaPagamento || 'Não especificado';
+            document.getElementById('confirm-parcelas').textContent = parcelas || 'Não especificado';
+            document.getElementById('confirm-endereco').textContent = document.querySelector("input[name='endereco']:checked").parentElement.textContent.trim();
+            document.getElementById('confirm-frete').textContent = tipoFrete === '0.00' ? 'Retirar na loja: Frete Grátis!' : `Frete: R$ ${tipoFrete}`;
+            document.getElementById('confirm-total-price').textContent = valorTotal.toFixed(2);
+
+            // Mostrar o modal de confirmação
+            $('#confirmacaoModal').modal('show');
+
+            // Ao confirmar, enviar os dados para a API
+            document.getElementById("confirm-purchase").addEventListener("click", function () {
+                const compraData = {
+                    idCliente,
+                    idEndereco,
+                    formaPagamento,
+                    tipoFrete,
+                    valorTotal,
+                    numeroPedido: Math.floor(Math.random() * 1000000),
+                    parcelas,
+                    valorParcelas,
+                    status: "AGUARDANDO_PAGAMENTO",
+                    itens
+                };
+
+                fetch("/compra/finalizar", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(compraData)
+                })
+                    .then(response => {
+                        if (!response.ok) {
+                            return response.json().then(error => { throw error });
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        alert("Compra finalizada com sucesso!");
+                        window.location.href = "/produtos/detalhesUser";
+                    })
+                    .catch(error => {
+                        console.error("Erro ao finalizar a compra:", error);
+                        alert("Ocorreu um erro ao finalizar a compra. Verifique os dados e tente novamente.");
+                    });
+            });
+        });
+
+    </script>
+</body>
+
+</html>
